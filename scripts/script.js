@@ -1,6 +1,8 @@
 "use strict";
 
 const headerCityButton = document.querySelector(".header__city-button");
+const cartListGoods = document.querySelector(".cart__list-goods");
+const cartTotalCost = document.querySelector(".cart__total-cost");
 
 let hash = location.hash.substring(1);
 
@@ -11,6 +13,51 @@ headerCityButton.addEventListener("click", () => {
   const city = prompt("Укажите ваш город") || "Ваш город?";
   headerCityButton.textContent = city;
   localStorage.setItem("lomodaLocation", city);
+});
+
+const getLocalStorage = () => JSON?.parse(localStorage.getItem('cart-lomoda')) || []; 
+const setLocalStorage = (data) => localStorage.setItem('cart-lomoda', JSON.stringify(data));
+
+const renderCart = () => {
+  cartListGoods.textContent = '';
+
+  const cartItems = getLocalStorage();
+
+  let totalPrice = 0;
+
+
+  cartItems.forEach(({ brand, name, size, id, cost, color }, i)=> {
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${brand} ${name}</td>
+        ${color ? `<td>${color}</td>`: `<td>-</td>`}
+        ${size ? `<td>${size}</td>`: `<td>-</td>`}
+        <td>${cost} &#8381;</td>
+        <td><button class="btn-delete" data-id="${id}">&times;</button></td>
+    `;
+    totalPrice += cost;
+    cartListGoods.append(tr);
+  });
+
+  cartTotalCost.textContent = `${totalPrice} ₽`;
+};
+
+const deleteItemCart = (id) => {
+  const cartItems = getLocalStorage();
+  const newCartItems = cartItems.filter(item => item.id !== id);
+  setLocalStorage(newCartItems);
+};
+
+
+cartListGoods.addEventListener('click', e => {
+  const target = e.target;
+  if(target.matches('.btn-delete')){
+    deleteItemCart(target.dataset.id);
+    renderCart();
+  }
+
 });
 
 // scroll
@@ -44,6 +91,7 @@ const cartOverlay = document.querySelector(".cart-overlay");
 const cartModalOpen = () => {
   cartOverlay.classList.add("cart-overlay-open");
   disableScroll();
+  renderCart();
 };
 const cartModalClose = () => {
   cartOverlay.classList.remove("cart-overlay-open");
@@ -86,6 +134,9 @@ cartOverlay.addEventListener("click", (e) => {
     cartModalClose();
   }
 });
+
+
+
 // категории
 try {
   const goodsList = document.querySelector(".goods__list");
@@ -172,7 +223,10 @@ try {
       ""
     );
 
-  const renderCardGood = ([{ photo, cost, brand, name, sizes, color }]) => {
+  const renderCardGood = ([{ id, photo, cost, brand, name, sizes, color }]) => {
+
+    const data = { brand, name, cost, id };
+
     cardGoodImage.src = `goods-image/${photo}`;
     cardGoodImage.alt = `${brand} ${name}`;
     cardGoodBrand.textContent = brand;
@@ -194,7 +248,33 @@ try {
     } else {
       cardGoodSizes.style.display = "none";
     }
+
+    if(getLocalStorage().some(item => item.id === id)){
+      cardGoodBuy.classList.add('delete');
+      cardGoodBuy.textContent = 'Удалить из корзины';
+    }
+
+    cardGoodBuy.addEventListener('click', () => {
+      if(cardGoodBuy.classList.contains('delete')) {
+        deleteItemCart(id);
+        cardGoodBuy.classList.remove('delete');
+        cardGoodBuy.textContent = 'Добавить в корзину';
+        return;
+      }
+      if(color) data.color = cardGoodColor.textContent;
+      if(sizes) data.size = cardGoodSizes.textContent;
+
+      cardGoodBuy.classList.add('delete');
+      cardGoodBuy.textContent = 'Удалить из корзины';
+
+  
+      const cardData = getLocalStorage();
+      cardData.push(data);
+      setLocalStorage(cardData);
+    });
   };
+
+  
 
   cardGoodSelectWrapper.forEach((item) => {
     item.addEventListener("click", (e) => {
@@ -210,6 +290,8 @@ try {
       }
     });
   });
+
+  
 
   getGoods(renderCardGood, "id", hash);
 } catch (err) {
